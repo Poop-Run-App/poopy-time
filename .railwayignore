@@ -1,0 +1,19 @@
+# Exclude large directories that shouldn't be uploaded
+node_modules/
+venv/
+.venv/
+__pycache__/
+*.pyc
+.git/
+.expo/
+instance/
+backend/venv/
+backend/.venv/
+backend/__pycache__/
+backend/instance/
+poopy-time-mobile/node_modules/
+frontend-app/node_modules/
+frontend-app/build/
+*.db
+*.sqlite
+*.log

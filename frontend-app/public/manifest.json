@@ -1,0 +1,13 @@
+{
+  "short_name": "Poopy Time",
+  "name": "Poopy Time",
+  "icons": [
+    { "src": "favicon.png", "sizes": "64x64", "type": "image/png" },
+    { "src": "logo192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "logo512.png", "type": "image/png", "sizes": "512x512" }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#8b5e3c",
+  "background_color": "#fffaf3"
+}

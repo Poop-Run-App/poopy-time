@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Poopy Time",
+    "slug": "poopy-time-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "jsEngine": "hermes",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#fffaf3"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.poopytime.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#fffaf3"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.poopytime.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+.DS_Store
+**/__pycache__/
+/backend/.venv
+/backend/venv
+/backend/app/static
+/backend/instance
+/backend/.env
+/.env
+/.idea/
+.expo/
+/poopy-time-mobile/google-services.json
+/poopy-time-mobile/*firebase-adminsdk*.json

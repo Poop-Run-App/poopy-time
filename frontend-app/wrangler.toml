@@ -1,0 +1,8 @@
+# Cloudflare Workers + static assets (`npx wrangler deploy`).
+# Root directory in the dashboard should be: frontend-app
+name = "poopy-time-web"
+compatibility_date = "2024-11-01"
+
+[assets]
+directory = "./build"
+not_found_handling = "single-page-application"

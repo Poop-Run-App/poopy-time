@@ -1,0 +1,11 @@
+# Keep EAS uploads focused on the mobile app (repo root is poopy-time).
+/backend/
+/frontend-app/
+/docs/
+/.idea/
+/Dockerfile
+/entrypoint.sh
+/Procfile
+/railway.json
+/.railwayignore
+/README.md
