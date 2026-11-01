@@ -2,7 +2,7 @@ import click
 
 from app import db
 from app.models.bathroomDB import Bathroom
-from app.services import osm_toilets
+from app.services import geocoding, osm_toilets
 
 # (name, lat offset, lng offset, open_hour, close_hour, is_accessible)
 SAMPLE_BATHROOMS = [
@@ -11,6 +11,21 @@ SAMPLE_BATHROOMS = [
     ('Sample Park Restroom', 0.0041, -0.0045, None, None, False),
     ('Sample Station Restroom', -0.0060, 0.0052, 5, 24, True),
 ]
+
+
+def _parse_area(city, bbox):
+    """(south, west, north, east) from --city or --bbox."""
+    if bool(city) == bool(bbox):
+        raise click.UsageError('Give exactly one of --city or --bbox.')
+    if city:
+        return osm_toilets.CITY_BOUNDS[city]
+    try:
+        bounds = tuple(float(v) for v in bbox.split(','))
+    except ValueError:
+        bounds = ()
+    if len(bounds) != 4:
+        raise click.UsageError('--bbox must be four numbers: south,west,north,east')
+    return bounds
 
 
 def register_commands(app):
@@ -37,17 +52,7 @@ def register_commands(app):
     def import_osm_toilets(city, bbox):
         """Import public toilets from OpenStreetMap. Safe to re-run: updates
         existing imports and removes ones no longer in OSM."""
-        if bool(city) == bool(bbox):
-            raise click.UsageError('Give exactly one of --city or --bbox.')
-        if city:
-            bounds = osm_toilets.CITY_BOUNDS[city]
-        else:
-            try:
-                bounds = tuple(float(v) for v in bbox.split(','))
-            except ValueError:
-                bounds = ()
-            if len(bounds) != 4:
-                raise click.UsageError('--bbox must be four numbers: south,west,north,east')
+        bounds = _parse_area(city, bbox)
 
         click.echo('Downloading toilets from OpenStreetMap...')
         try:
@@ -70,6 +75,10 @@ def register_commands(app):
                 bathroom = Bathroom()
                 db.session.add(bathroom)
                 added += 1
+            # OSM rarely has addresses for toilets; keep one filled in by
+            # fill-addresses (or by hand) rather than blanking it
+            if not fields['address'] and bathroom.address:
+                del fields['address']
             for key, value in fields.items():
                 setattr(bathroom, key, value)
 
@@ -86,3 +95,37 @@ def register_commands(app):
         db.session.commit()
         click.echo(f'Added {added}, updated {updated}, removed {len(gone)}, '
                    f'skipped {skipped} (private or no location).')
+
+    @app.cli.command('fill-addresses')
+    @click.option('--city', type=click.Choice(sorted(osm_toilets.CITY_BOUNDS)), help='A known city area.')
+    @click.option('--bbox', help='Custom area as "south,west,north,east".')
+    def fill_addresses(city, bbox):
+        """Look up a street address for bathrooms that have none, using
+        OpenStreetMap's Nominatim (one request per second)."""
+        south, west, north, east = _parse_area(city, bbox)
+        missing = Bathroom.query.filter(
+            Bathroom.address.is_(None),
+            Bathroom.latitude.between(south, north),
+            Bathroom.longitude.between(west, east),
+        ).order_by(Bathroom.id).all()
+        click.echo(f'{len(missing)} bathrooms without an address, about {len(missing) * 1.1 / 60:.0f} min...')
+
+        filled = not_found = failed = 0
+        for i, bathroom in enumerate(missing, start=1):
+            try:
+                address = geocoding.reverse_geocode(bathroom.latitude, bathroom.longitude)
+            except (OSError, ValueError) as e:
+                failed += 1
+                click.echo(f'  #{bathroom.id}: lookup failed ({e})')
+                continue
+            if address:
+                bathroom.address = address[:255]
+                filled += 1
+            else:
+                not_found += 1
+            if i % 25 == 0:
+                db.session.commit()
+                click.echo(f'  {i}/{len(missing)}')
+
+        db.session.commit()
+        click.echo(f'Filled {filled}, no street found for {not_found}, failed {failed}.')
