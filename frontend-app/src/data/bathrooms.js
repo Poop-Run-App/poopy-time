@@ -22,6 +22,15 @@ export function hoursLabel(bathroom) {
   return `${formatHour(bathroom.open_hour)}-${formatHour(bathroom.close_hour)}`;
 }
 
+// The card's hours line. hours_note is set when the hours couldn't be
+// turned into a simple range (e.g. imported "Mo-Fr 08:00-17:00"), so
+// there's no open/closed status to show.
+export function hoursStatus(bathroom, now = new Date()) {
+  if (bathroom.hours_note) return { text: bathroom.hours_note, tone: 'unknown' };
+  const open = isOpen(bathroom, now);
+  return { text: `${open ? 'Open' : 'Closed'} - ${hoursLabel(bathroom)}`, tone: open ? 'open' : 'closed' };
+}
+
 export function isOpen(bathroom, now = new Date()) {
   if (isAllDay(bathroom)) return true;
   const { open_hour: open, close_hour: close } = bathroom;

@@ -16,7 +16,8 @@
 
 .emergency__notice {
   position: absolute;
-  top: calc(var(--space) + env(safe-area-inset-top));
+  /* Below the OpenStreetMap credit in the top right */
+  top: calc(var(--space) + 20px + env(safe-area-inset-top));
   left: var(--space);
   right: var(--space);
   z-index: 500;
@@ -82,8 +83,9 @@
 }
 .bathroom-card__meta p { margin: 0; font-size: 15px; }
 .bathroom-card__meta p + p { margin-top: 4px; }
-.bathroom-card__open { color: var(--color-text); }
-.bathroom-card__closed { color: var(--color-error); }
+.bathroom-card__hours--open { color: var(--color-text); }
+.bathroom-card__hours--closed { color: var(--color-error); }
+.bathroom-card__hours--unknown { color: var(--color-muted); }
 .bathroom-card__actions {
   display: flex;
   align-items: center;

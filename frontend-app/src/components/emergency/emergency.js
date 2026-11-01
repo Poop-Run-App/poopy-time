@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, CircleMarker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, CircleMarker, AttributionControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { fetchNearbyBathrooms, hoursLabel, isOpen } from '../../data/bathrooms';
+import { fetchNearbyBathrooms, hoursStatus } from '../../data/bathrooms';
 import './emergency.css';
 
 // Used when the browser can't or won't share a location
@@ -89,7 +89,7 @@ export default function Emergency() {
   ].filter(Boolean).join(' ');
 
   const current = bathrooms[selected];
-  const open = current && isOpen(current);
+  const hours = current && hoursStatus(current);
 
   const select = (i) => { setSelected(i); setShowInfo(false); };
   const next = () => select((selected + 1) % bathrooms.length);
@@ -105,7 +105,12 @@ export default function Emergency() {
         zoomControl={false}
         attributionControl={false}
       >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        {/* The map tiles and imported toilets both come from OpenStreetMap, whose licence requires this credit */}
+        <AttributionControl position="topright" prefix={false} />
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        />
         <CircleMarker
           center={[location.lat, location.lng]}
           radius={8}
@@ -130,8 +135,8 @@ export default function Emergency() {
             <h2 className="bathroom-card__name">{current.name}</h2>
             <div className="bathroom-card__bottom">
               <div className="bathroom-card__meta">
-                <p className={open ? 'bathroom-card__open' : 'bathroom-card__closed'}>
-                  {open ? 'Open' : 'Closed'} - {hoursLabel(current)}
+                <p className={`bathroom-card__hours bathroom-card__hours--${hours.tone}`}>
+                  {hours.text}
                 </p>
                 <p>{current.distance_miles.toFixed(1)} miles away</p>
               </div>

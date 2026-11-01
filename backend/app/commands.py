@@ -2,6 +2,7 @@ import click
 
 from app import db
 from app.models.bathroomDB import Bathroom
+from app.services import osm_toilets
 
 # (name, lat offset, lng offset, open_hour, close_hour, is_accessible)
 SAMPLE_BATHROOMS = [
@@ -29,3 +30,59 @@ def register_commands(app):
             ))
         db.session.commit()
         click.echo(f'Added {len(SAMPLE_BATHROOMS)} sample bathrooms near {lat}, {lng}.')
+
+    @app.cli.command('import-osm-toilets')
+    @click.option('--city', type=click.Choice(sorted(osm_toilets.CITY_BOUNDS)), help='A known city area.')
+    @click.option('--bbox', help='Custom area as "south,west,north,east".')
+    def import_osm_toilets(city, bbox):
+        """Import public toilets from OpenStreetMap. Safe to re-run: updates
+        existing imports and removes ones no longer in OSM."""
+        if bool(city) == bool(bbox):
+            raise click.UsageError('Give exactly one of --city or --bbox.')
+        if city:
+            bounds = osm_toilets.CITY_BOUNDS[city]
+        else:
+            try:
+                bounds = tuple(float(v) for v in bbox.split(','))
+            except ValueError:
+                bounds = ()
+            if len(bounds) != 4:
+                raise click.UsageError('--bbox must be four numbers: south,west,north,east')
+
+        click.echo('Downloading toilets from OpenStreetMap...')
+        try:
+            elements, places = osm_toilets.fetch_toilets(bounds, log=click.echo)
+        except RuntimeError as e:
+            raise click.ClickException(str(e))
+
+        added = updated = skipped = 0
+        seen = set()
+        for element in elements:
+            fields = osm_toilets.to_bathroom_fields(element, places)
+            if not fields:
+                skipped += 1
+                continue
+            seen.add(fields['osm_id'])
+            bathroom = Bathroom.query.filter_by(osm_id=fields['osm_id']).first()
+            if bathroom:
+                updated += 1
+            else:
+                bathroom = Bathroom()
+                db.session.add(bathroom)
+                added += 1
+            for key, value in fields.items():
+                setattr(bathroom, key, value)
+
+        south, west, north, east = bounds
+        gone = Bathroom.query.filter(
+            Bathroom.source == 'osm',
+            Bathroom.latitude.between(south, north),
+            Bathroom.longitude.between(west, east),
+            Bathroom.osm_id.notin_(seen),
+        ).all()
+        for bathroom in gone:
+            db.session.delete(bathroom)
+
+        db.session.commit()
+        click.echo(f'Added {added}, updated {updated}, removed {len(gone)}, '
+                   f'skipped {skipped} (private or no location).')
