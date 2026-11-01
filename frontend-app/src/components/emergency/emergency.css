@@ -1,0 +1,137 @@
+.emergency {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.emergency--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.emergency__map {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.emergency__notice {
+  position: absolute;
+  /* Below the OpenStreetMap credit in the top right */
+  top: calc(var(--space) + 20px + env(safe-area-inset-top));
+  left: var(--space);
+  right: var(--space);
+  z-index: 500;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-muted);
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Numbered map pins */
+.pin {
+  width: 32px;
+  height: 32px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--color-text);
+  border: 3px solid var(--color-surface);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+.pin span {
+  transform: rotate(45deg);
+  color: var(--color-surface);
+  font-weight: 700;
+  font-size: 14px;
+}
+.pin--selected { background: var(--color-primary); }
+
+/* Bottom card with the selected bathroom */
+.bathroom-card-row {
+  position: absolute;
+  left: var(--space);
+  right: 4px;
+  bottom: var(--space);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.bathroom-card {
+  flex: 1;
+  min-width: 0;
+  background: var(--color-surface);
+  border: 2px solid var(--color-text);
+  border-radius: 20px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+.bathroom-card__name {
+  margin: 0 0 16px;
+  font-size: 17px;
+}
+.bathroom-card__bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bathroom-card__meta p { margin: 0; font-size: 15px; }
+.bathroom-card__meta p + p { margin-top: 4px; }
+.bathroom-card__hours--open { color: var(--color-text); }
+.bathroom-card__hours--closed { color: var(--color-error); }
+.bathroom-card__hours--unknown { color: var(--color-muted); }
+.bathroom-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bathroom-card__info {
+  margin-top: 12px;
+  font-size: 14px;
+}
+.bathroom-card__info p { margin: 0; }
+.bathroom-card__info p + p { margin-top: 2px; }
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text);
+  cursor: pointer;
+  text-decoration: none;
+}
+.icon-btn--info {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--color-text);
+  border-radius: 50%;
+  font: italic 700 16px Georgia, serif;
+}
+.icon-btn--go { color: var(--color-primary); }
+
+.bathroom-card-row__next {
+  flex: none;
+  width: 32px;
+  height: 48px;
+  padding: 0;
+  border: none;
+  border-radius: 16px;
+  background: var(--color-surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
