@@ -64,6 +64,12 @@ def fetch_toilets(bounds, timeout=90, retry_waits=(15, 30, 60), log=print):
     raise RuntimeError('All Overpass servers failed, try again in a few minutes.\n' + '\n'.join(errors))
 
 
+# Places with a bounding box bigger than this (in square degrees, about
+# 4 km x 3 km in Seattle) are skipped. Spread-out places such as a national
+# park with sites in two states would otherwise name toilets across the city.
+MAX_PLACE_BOX = 0.0015
+
+
 def _place_name_for(lat, lng, places):
     """Name of the smallest place whose bounding box contains the point."""
     best, best_size = None, None
@@ -71,6 +77,8 @@ def _place_name_for(lat, lng, places):
         b = place['bounds']
         if b['minlat'] <= lat <= b['maxlat'] and b['minlon'] <= lng <= b['maxlon']:
             size = (b['maxlat'] - b['minlat']) * (b['maxlon'] - b['minlon'])
+            if size > MAX_PLACE_BOX:
+                continue
             if best_size is None or size < best_size:
                 best, best_size = place['tags']['name'], size
     return best
