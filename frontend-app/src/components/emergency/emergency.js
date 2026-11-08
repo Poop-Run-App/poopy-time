@@ -2,15 +2,22 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, CircleMarker, AttributionControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { fetchNearbyBathrooms, hoursStatus } from '../../data/bathrooms';
+import { fetchNearbyBathrooms, hoursStatus, openFirst } from '../../data/bathrooms';
 import './emergency.css';
+
+const GENDER_LABELS = {
+  unisex: 'Unisex',
+  separate: "Separate men's and women's",
+  men: 'Men only',
+  women: 'Women only',
+};
 
 // Used when the browser can't or won't share a location
 const FALLBACK_LOCATION = { lat: 40.7128, lng: -74.006 };
 
-const pinIcon = (number, selected) => L.divIcon({
+const pinIcon = (number, selected, closed) => L.divIcon({
   className: '',
-  html: `<div class="pin${selected ? ' pin--selected' : ''}"><span>${number}</span></div>`,
+  html: `<div class="pin${selected ? ' pin--selected' : ''}${closed ? ' pin--closed' : ''}"><span>${number}</span></div>`,
   iconSize: [32, 42],
   iconAnchor: [16, 42],
 });
@@ -65,7 +72,7 @@ export default function Emergency() {
     if (!location) return;
     let cancelled = false;
     fetchNearbyBathrooms(location)
-      .then((list) => { if (!cancelled) setBathrooms(list); })
+      .then((list) => { if (!cancelled) setBathrooms(openFirst(list)); })
       .catch(() => {
         if (cancelled) return;
         setLoadError("Couldn't load nearby bathrooms");
@@ -120,7 +127,7 @@ export default function Emergency() {
           <Marker
             key={b.id}
             position={[b.latitude, b.longitude]}
-            icon={pinIcon(i + 1, i === selected)}
+            icon={pinIcon(i + 1, i === selected, b.status === 'closed')}
             eventHandlers={{ click: () => select(i) }}
           />
         ))}
@@ -166,6 +173,7 @@ export default function Emergency() {
               <div className="bathroom-card__info muted">
                 {current.address && <p>{current.address}</p>}
                 <p>{current.is_accessible ? 'Wheelchair accessible' : 'Accessibility unknown'}</p>
+                {GENDER_LABELS[current.gender] && <p>{GENDER_LABELS[current.gender]}</p>}
                 {current.notes && <p>{current.notes}</p>}
               </div>
             )}

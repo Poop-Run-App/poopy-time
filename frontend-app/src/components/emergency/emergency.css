@@ -50,6 +50,7 @@
   font-size: 14px;
 }
 .pin--selected { background: var(--color-primary); }
+.pin--closed { opacity: 0.45; }
 
 /* Bottom card with the selected bathroom */
 .bathroom-card-row {

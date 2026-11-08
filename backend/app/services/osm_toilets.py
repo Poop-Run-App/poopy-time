@@ -103,14 +103,26 @@ def parse_hours(opening_hours):
     return None, None, value[:255]
 
 
+def _gender(tags):
+    """'unisex', 'separate', 'men', 'women', or None when OSM doesn't say."""
+    if tags.get('unisex') == 'yes':
+        return 'unisex'
+    male, female = tags.get('male') == 'yes', tags.get('female') == 'yes'
+    if male and female:
+        return 'separate'
+    if male:
+        return 'men'
+    if female:
+        return 'women'
+    return None
+
+
 def _notes(tags):
     notes = []
     if tags.get('fee') == 'yes':
         notes.append('Fee required')
     if tags.get('access') == 'customers':
         notes.append('Customers only')
-    if tags.get('unisex') == 'yes':
-        notes.append('Unisex')
     if tags.get('changing_table') == 'yes':
         notes.append('Changing table')
     # Descriptions are often just the name again ("Carkeek Park Restroom")
@@ -148,6 +160,7 @@ def to_bathroom_fields(element, places=()):
         'close_hour': close_hour,
         'hours_note': hours_note,
         'is_accessible': tags.get('wheelchair') == 'yes',
+        'gender': _gender(tags),
         'notes': _notes(tags),
         'source': 'osm',
     }

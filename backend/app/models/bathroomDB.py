@@ -15,10 +15,18 @@ class Bathroom(db.Model):
     close_hour = db.Column(db.Integer)
     hours_note = db.Column(db.String(255))
     is_accessible = db.Column(db.Boolean, default=False, nullable=False)
+    # 'unisex', 'separate' (men's and women's rooms), 'men' or 'women'; null if unknown
+    gender = db.Column(db.String(20))
     notes = db.Column(db.Text)
-    # 'user' for bathrooms added in the app, 'osm' for OpenStreetMap imports
+    # 'open', 'closed' or 'limited' when a source reports it; null if unknown
+    status = db.Column(db.String(20))
+    status_reason = db.Column(db.String(100))
+    # 'user' for bathrooms added in the app, 'osm' for OpenStreetMap imports,
+    # 'seattle_parks' for Seattle Parks restrooms that OSM doesn't have
     source = db.Column(db.String(20), nullable=False, default='user', server_default='user')
     osm_id = db.Column(db.String(40), unique=True)  # e.g. "node/123", used to update on re-import
+    # Seattle Parks asset ID (e.g. "RESTROOM-SCCS"), set on any bathroom matched to the city's data
+    city_id = db.Column(db.String(40), unique=True)
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
@@ -33,6 +41,9 @@ class Bathroom(db.Model):
             'close_hour': self.close_hour,
             'hours_note': self.hours_note,
             'is_accessible': self.is_accessible,
+            'gender': self.gender,
             'notes': self.notes,
+            'status': self.status,
+            'status_reason': self.status_reason,
             'source': self.source,
         }

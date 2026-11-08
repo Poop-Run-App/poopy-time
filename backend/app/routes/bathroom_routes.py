@@ -12,6 +12,7 @@ EARTH_RADIUS_MILES = 3958.8
 MILES_PER_DEGREE_LAT = 69.0
 MAX_RADIUS_MILES = 25
 MAX_LIMIT = 50
+GENDERS = ('unisex', 'separate', 'men', 'women')
 
 
 def distance_miles(lat1, lng1, lat2, lng2):
@@ -94,6 +95,9 @@ def create_bathroom(current_user):
         close_hour = _parse_hour(data.get('close_hour'), 'close_hour')
     except ValueError as e:
         return jsonify({'message': str(e)}), 400
+    gender = data.get('gender') or None
+    if gender is not None and gender not in GENDERS:
+        return jsonify({'message': f"gender must be one of: {', '.join(GENDERS)}"}), 400
     if (open_hour is None) != (close_hour is None):
         return jsonify({'message': 'Give both open_hour and close_hour, or neither for 24 hours'}), 400
 
@@ -105,6 +109,7 @@ def create_bathroom(current_user):
         open_hour=open_hour,
         close_hour=close_hour,
         is_accessible=bool(data.get('is_accessible')),
+        gender=gender,
         notes=(data.get('notes') or '').strip() or None,
         created_by_id=current_user.id,
     )

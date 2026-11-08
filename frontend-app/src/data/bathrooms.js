@@ -22,13 +22,27 @@ export function hoursLabel(bathroom) {
   return `${formatHour(bathroom.open_hour)}-${formatHour(bathroom.close_hour)}`;
 }
 
-// The card's hours line. hours_note is set when the hours couldn't be
-// turned into a simple range (e.g. imported "Mo-Fr 08:00-17:00"), so
-// there's no open/closed status to show.
+// Bathrooms a source reports as closed go last, so the nearest open one
+// comes first; the order is otherwise nearest first.
+export function openFirst(bathrooms) {
+  return [...bathrooms].sort((a, b) => (a.status === 'closed') - (b.status === 'closed'));
+}
+
+// The card's hours line. A reported closure wins. hours_note is the
+// source's own wording: shown in place of the hour range when there is
+// one, and on its own (with no open/closed status) when the hours
+// couldn't be turned into a range (e.g. imported "Mo-Fr 08:00-17:00").
 export function hoursStatus(bathroom, now = new Date()) {
-  if (bathroom.hours_note) return { text: bathroom.hours_note, tone: 'unknown' };
+  if (bathroom.status === 'closed') {
+    return { text: bathroom.status_reason || 'Closed', tone: 'closed' };
+  }
+  const limited = bathroom.status === 'limited' ? ` (${bathroom.status_reason || 'limited use'})` : '';
+  if (bathroom.open_hour == null && bathroom.hours_note) {
+    return { text: bathroom.hours_note + limited, tone: 'unknown' };
+  }
   const open = isOpen(bathroom, now);
-  return { text: `${open ? 'Open' : 'Closed'} - ${hoursLabel(bathroom)}`, tone: open ? 'open' : 'closed' };
+  const hours = bathroom.hours_note || hoursLabel(bathroom);
+  return { text: `${open ? 'Open' : 'Closed'} - ${hours}${limited}`, tone: open ? 'open' : 'closed' };
 }
 
 export function isOpen(bathroom, now = new Date()) {
