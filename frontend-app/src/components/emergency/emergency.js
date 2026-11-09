@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, CircleMarker, AttributionControl, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, CircleMarker, AttributionControl, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { fetchNearbyBathrooms, hoursStatus, openFirst } from '../../data/bathrooms';
+import {
+  fetchNearbyBathrooms, fetchBathroomsInView, distanceMiles, hoursStatus, openFirst,
+} from '../../data/bathrooms';
 import './emergency.css';
 
 const GENDER_LABELS = {
@@ -21,6 +23,29 @@ const pinIcon = (number, selected, closed) => L.divIcon({
   iconSize: [32, 42],
   iconAnchor: [16, 42],
 });
+
+// Loads every bathroom in the visible area after the map stops moving
+function LoadInView({ onLoad }) {
+  const timer = useRef(null);
+  const request = useRef(0);
+  const map = useMapEvents({ moveend: () => schedule() });
+
+  const schedule = () => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      const id = ++request.current;
+      fetchBathroomsInView(map.getBounds())
+        .then((data) => { if (id === request.current) onLoad(data); })
+        .catch(() => {});  // the nearby list still works without these
+    }, 250);
+  };
+
+  useEffect(() => {
+    schedule();
+    return () => clearTimeout(timer.current);
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
 
 // Keeps the bottom card from covering pins
 const MAP_PADDING = { paddingTopLeft: [40, 60], paddingBottomRight: [40, 180] };
@@ -45,7 +70,7 @@ function KeepInView({ location, bathrooms, selected }) {
 export default function Emergency() {
   const [location, setLocation] = useState(null);
   const [locationError, setLocationError] = useState('');
-  const [selected, setSelected] = useState(0);
+  const [selectedId, setSelectedId] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
@@ -67,6 +92,8 @@ export default function Emergency() {
   // The API returns nearest first, so pin numbers match the order "next" walks through
   const [bathrooms, setBathrooms] = useState(null);
   const [loadError, setLoadError] = useState('');
+  // Everything else in the visible area, shown as small dots
+  const [inView, setInView] = useState({ bathrooms: [], truncated: false });
 
   useEffect(() => {
     if (!location) return;
@@ -89,17 +116,30 @@ export default function Emergency() {
     );
   }
 
+  const nearbyIds = new Set(bathrooms.map((b) => b.id));
+  const others = inView.bathrooms.filter((b) => !nearbyIds.has(b.id));
+
   const notice = [
     locationError && `${locationError}. Showing a sample area.`,
     loadError,
-    !loadError && !bathrooms.length && 'No bathrooms found within a mile.',
+    !loadError && !bathrooms.length && !others.length && 'No bathrooms found within a mile.',
+    inView.truncated && 'Zoom in to see every bathroom here.',
   ].filter(Boolean).join(' ');
 
-  const current = bathrooms[selected];
+  const current = (selectedId == null ? bathrooms[0] : null)
+    || bathrooms.find((b) => b.id === selectedId)
+    || others.find((b) => b.id === selectedId)
+    || bathrooms[0];
   const hours = current && hoursStatus(current);
+  const distance = current && (current.distance_miles
+    ?? distanceMiles(location, { lat: current.latitude, lng: current.longitude }));
 
-  const select = (i) => { setSelected(i); setShowInfo(false); };
-  const next = () => select((selected + 1) % bathrooms.length);
+  const select = (id) => { setSelectedId(id); setShowInfo(false); };
+  // Next walks the numbered (nearest) bathrooms; from a dot it starts at #1
+  const next = () => {
+    const i = bathrooms.findIndex((b) => b.id === current?.id);
+    select(bathrooms[(i + 1) % bathrooms.length].id);
+  };
   const directionsUrl = current
     && `https://www.google.com/maps/dir/?api=1&destination=${current.latitude},${current.longitude}&travelmode=walking`;
 
@@ -111,6 +151,7 @@ export default function Emergency() {
         zoom={16}
         zoomControl={false}
         attributionControl={false}
+        preferCanvas
       >
         {/* The map tiles and imported toilets both come from OpenStreetMap, whose licence requires this credit */}
         <AttributionControl position="topright" prefix={false} />
@@ -123,14 +164,29 @@ export default function Emergency() {
           radius={8}
           pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#1a9be6', fillOpacity: 1 }}
         />
+        {others.map((b) => (
+          <CircleMarker
+            key={b.id}
+            center={[b.latitude, b.longitude]}
+            radius={b.id === current?.id ? 9 : 6}
+            pathOptions={{
+              color: '#ffffff',
+              weight: 2,
+              fillColor: b.id === current?.id ? '#8b5e3c' : '#2b1d12',
+              fillOpacity: b.status === 'closed' ? 0.4 : 0.9,
+            }}
+            eventHandlers={{ click: () => select(b.id) }}
+          />
+        ))}
         {bathrooms.map((b, i) => (
           <Marker
             key={b.id}
             position={[b.latitude, b.longitude]}
-            icon={pinIcon(i + 1, i === selected, b.status === 'closed')}
-            eventHandlers={{ click: () => select(i) }}
+            icon={pinIcon(i + 1, b.id === current?.id, b.status === 'closed')}
+            eventHandlers={{ click: () => select(b.id) }}
           />
         ))}
+        <LoadInView onLoad={setInView} />
         <KeepInView location={location} bathrooms={bathrooms} selected={current} />
       </MapContainer>
 
@@ -145,7 +201,7 @@ export default function Emergency() {
                 <p className={`bathroom-card__hours bathroom-card__hours--${hours.tone}`}>
                   {hours.text}
                 </p>
-                <p>{current.distance_miles.toFixed(1)} miles away</p>
+                <p>{distance.toFixed(1)} miles away</p>
               </div>
               <div className="bathroom-card__actions">
                 <button
@@ -178,7 +234,7 @@ export default function Emergency() {
               </div>
             )}
           </section>
-          {bathrooms.length > 1 && (
+          {bathrooms.length > 0 && (bathrooms.length > 1 || current.id !== bathrooms[0].id) && (
             <button className="bathroom-card-row__next" aria-label="Next bathroom" onClick={next}>
               <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
                 <path d="M9 4 L17 12 L9 20" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />

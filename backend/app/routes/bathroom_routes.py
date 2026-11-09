@@ -12,6 +12,7 @@ EARTH_RADIUS_MILES = 3958.8
 MILES_PER_DEGREE_LAT = 69.0
 MAX_RADIUS_MILES = 25
 MAX_LIMIT = 50
+MAX_IN_VIEW = 500
 GENDERS = ('unisex', 'separate', 'men', 'women')
 
 
@@ -69,6 +70,34 @@ def nearby(current_user):
     results.sort(key=lambda r: r['distance_miles'])
 
     return jsonify({'bathrooms': results[:limit]}), 200
+
+
+@bathroom_bp.route('/in-view', methods=['GET'])
+@token_required
+def in_view(current_user):
+    """Bathrooms inside the map's visible box, nearest to its center first.
+    `truncated` says the box held more than `limit`."""
+    try:
+        south = _parse_float(request.args.get('south'), 'south', -90, 90)
+        north = _parse_float(request.args.get('north'), 'north', -90, 90)
+        west = _parse_float(request.args.get('west'), 'west', -180, 180)
+        east = _parse_float(request.args.get('east'), 'east', -180, 180)
+        limit = int(_parse_float(request.args.get('limit', MAX_IN_VIEW), 'limit', 1, MAX_IN_VIEW))
+    except ValueError as e:
+        return jsonify({'message': str(e)}), 400
+    if south > north or west > east:
+        return jsonify({'message': 'south must be below north and west left of east'}), 400
+
+    candidates = Bathroom.query.filter(
+        Bathroom.latitude.between(south, north),
+        Bathroom.longitude.between(west, east),
+    ).all()
+    center_lat, center_lng = (south + north) / 2, (west + east) / 2
+    candidates.sort(key=lambda b: distance_miles(center_lat, center_lng, b.latitude, b.longitude))
+    return jsonify({
+        'bathrooms': [b.to_dict() for b in candidates[:limit]],
+        'truncated': len(candidates) > limit,
+    }), 200
 
 
 @bathroom_bp.route('/<int:bathroom_id>', methods=['GET'])

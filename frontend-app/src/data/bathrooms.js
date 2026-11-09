@@ -8,6 +8,29 @@ export async function fetchNearbyBathrooms({ lat, lng }, radiusMiles = 1) {
   return res.data.bathrooms;
 }
 
+// Every bathroom in the visible map area (up to the API's cap), nearest to
+// the view's center first; `truncated` means there were more
+export async function fetchBathroomsInView(bounds) {
+  const res = await api.get('/bathrooms/in-view', {
+    params: {
+      south: bounds.getSouth(),
+      west: bounds.getWest(),
+      north: bounds.getNorth(),
+      east: bounds.getEast(),
+    },
+  });
+  return res.data;
+}
+
+export function distanceMiles(a, b) {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 3958.8 * Math.asin(Math.sqrt(h));
+}
+
 // 17.5 -> "5:30pm"
 const formatHour = (h) => {
   const whole = Math.floor(h);
