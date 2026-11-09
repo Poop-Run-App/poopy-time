@@ -37,9 +37,9 @@ def _parse_float(value, name, low, high):
 def _parse_hour(value, name):
     if value is None or value == '':
         return None
-    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 24:
-        raise ValueError(f'{name} must be a whole number from 0 to 24')
-    return value
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 <= value <= 24:
+        raise ValueError(f'{name} must be a number from 0 to 24 (17.5 = 5:30pm)')
+    return float(value)
 
 
 @bathroom_bp.route('/nearby', methods=['GET'])

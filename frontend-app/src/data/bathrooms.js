@@ -8,10 +8,13 @@ export async function fetchNearbyBathrooms({ lat, lng }, radiusMiles = 1) {
   return res.data.bathrooms;
 }
 
+// 17.5 -> "5:30pm"
 const formatHour = (h) => {
-  if (h === 0 || h === 24) return '12am';
-  if (h === 12) return '12pm';
-  return h < 12 ? `${h}am` : `${h - 12}pm`;
+  const whole = Math.floor(h);
+  const minutes = Math.round((h - whole) * 60);
+  const suffix = whole % 24 < 12 ? 'am' : 'pm';
+  const hour12 = whole % 12 === 0 ? 12 : whole % 12;
+  return minutes ? `${hour12}:${String(minutes).padStart(2, '0')}${suffix}` : `${hour12}${suffix}`;
 };
 
 const isAllDay = ({ open_hour: open, close_hour: close }) =>
