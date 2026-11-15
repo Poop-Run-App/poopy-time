@@ -60,6 +60,20 @@ npx expo start         # Expo Go: use `npm run start:go`
 
 Native builds: `npm run android` / `npm run ios` (iOS requires macOS), or EAS: `npx eas init` then `npm run build:dev:ios` / `npm run build:dev:android`. Update `bundleIdentifier` / `package` in `app.json` (currently `com.poopytime.app`) and the API URLs in `eas.json` before your first build.
 
+## Bathroom data
+
+Ingest loads NYC Open Data, Seattle Parks restrooms, and OpenStreetMap toilets into the local SQLite database when `DATABASE_URL` is blank. City rows win over OpenStreetMap, including coordinates. Details and the field list are in [docs/bathroom-data-pipeline.md](docs/bathroom-data-pipeline.md).
+
+```bash
+cd backend
+source .venv/bin/activate
+flask db upgrade
+python -m app.ingest init      # first load; refuses if bathroom rows already exist
+python -m app.ingest update    # fetch again, upsert, and rematch
+```
+
+`--region nyc|seattle|all` limits which feeds run. The command refuses a Postgres `DATABASE_URL` unless you pass `--allow-remote`.
+
 ## Deploying the backend (Railway)
 
 The root `Dockerfile` + `railway.json` build the backend. Set `DATABASE_URL`, `SECRET_KEY`, `JWT_SECRET_KEY`, and `CORS_ORIGINS` on the service. `entrypoint.sh` creates and applies migrations on start.
