@@ -35,6 +35,7 @@ Endpoints:
 | POST | `/auth/signup` | `{ email, password, display_name? }` → `{ token, user }` |
 | POST | `/auth/login` | `{ email, password }` → `{ token, user }` |
 | GET | `/auth/me` | Requires `Authorization: Bearer <token>` |
+| POST | `/routes/snap` | `{ points: [[lat, lng], ...] }` → `{ route }`: the drawn path moved onto walkable paths (see `ROUTING_URL` in `env.template`) |
 
 Add new features as a model in `app/models/`, a blueprint in `app/routes/` (registered in `routes/__init__.py`), and any business logic in `app/services/`. Use `@token_required` from `routes/shared.py` for authenticated routes.
 
@@ -59,6 +60,24 @@ npx expo start         # Expo Go: use `npm run start:go`
 ```
 
 Native builds: `npm run android` / `npm run ios` (iOS requires macOS), or EAS: `npx eas init` then `npm run build:dev:ios` / `npm run build:dev:android`. Update `bundleIdentifier` / `package` in `app.json` (currently `com.poopytime.app`) and the API URLs in `eas.json` before your first build.
+
+## Bathroom data
+
+Bathrooms live in the `bathrooms` table and are loaded with Flask commands. Each is safe to re-run. City open data wins over OpenStreetMap, and edits from the team's tracking sheet win over both. Details are in [docs/bathroom-data-pipeline.md](docs/bathroom-data-pipeline.md).
+
+```bash
+cd backend
+source .venv/bin/activate
+flask db upgrade
+flask import-osm-toilets --city seattle   # or --city nyc, or --bbox south,west,north,east
+flask import-seattle-parks
+flask import-osm-toilets --city nyc
+flask import-nyc-restrooms
+flask import-sheet path/to/sheet.csv      # team tracking sheet, exported as CSV
+flask fill-addresses --city seattle       # optional, one lookup per second
+```
+
+These write to whatever database `DATABASE_URL` points at (local SQLite when it's blank).
 
 ## Deploying the backend (Railway)
 

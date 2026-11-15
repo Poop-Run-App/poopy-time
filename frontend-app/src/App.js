@@ -5,7 +5,10 @@ import './theme/tokens.css';
 import './App.css';
 import Login from './components/auth/login';
 import SignUp from './components/auth/signUp';
-import Home from './components/home/home';
+import AppShell from './components/layout/appShell';
+import Emergency from './components/emergency/emergency';
+import RoutePlanner from './components/route/route';
+import Profile from './components/profile/profile';
 
 function RequireAuth({ children }) {
   const { user } = useUser();
@@ -19,7 +22,11 @@ function App() {
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
-          <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
+          <Route path="/home" element={<RequireAuth><AppShell /></RequireAuth>}>
+            <Route index element={<Emergency />} />
+            <Route path="route" element={<RoutePlanner />} />
+            <Route path="profile" element={<Profile />} />
+          </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>

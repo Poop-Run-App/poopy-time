@@ -51,4 +51,7 @@ def create_app():
     from .routes import register_blueprints
     register_blueprints(app)
 
+    from .commands import register_commands
+    register_commands(app)
+
     return app

@@ -1,0 +1,99 @@
+.route-planner {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.route-planner--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.route-planner__map {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+/* Drawing mode: the map doesn't pan, so say so with the cursor */
+.route-planner--drawing .leaflet-container,
+.route-planner--drawing .leaflet-grab {
+  cursor: crosshair;
+}
+
+.route-planner__notice {
+  position: absolute;
+  /* Below the OpenStreetMap credit in the top right, clear of the zoom buttons */
+  top: calc(var(--space) + 20px + env(safe-area-inset-top));
+  left: calc(var(--space) + 44px);
+  right: var(--space);
+  z-index: 500;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-muted);
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Bottom card with the route's distance and the drawing controls */
+.route-card {
+  position: absolute;
+  left: var(--space);
+  right: var(--space);
+  bottom: var(--space);
+  z-index: 500;
+  background: var(--color-surface);
+  border: 2px solid var(--color-text);
+  border-radius: 20px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+.route-card__status p {
+  margin: 0;
+  font-size: 15px;
+}
+.route-card__status p + p { margin-top: 4px; }
+.route-card__status .muted { font-size: 14px; }
+.route-card__distance {
+  font-size: 20px !important;
+  font-weight: 700;
+}
+.route-card__retry {
+  margin-top: 8px;
+  padding: 6px 12px;
+  border: 2px solid var(--color-text);
+  border-radius: 8px;
+  background: none;
+  color: var(--color-text);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.route-card__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.route-btn {
+  padding: 10px 14px;
+  border: 2px solid var(--color-text);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 15px;
+  cursor: pointer;
+}
+.route-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.route-btn--primary {
+  flex: 1;
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  font-weight: 600;
+}
+.route-btn--active {
+  background: var(--color-text);
+  border-color: var(--color-text);
+}
