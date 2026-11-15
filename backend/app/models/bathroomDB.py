@@ -22,11 +22,12 @@ class Bathroom(db.Model):
     status = db.Column(db.String(20))
     status_reason = db.Column(db.String(100))
     # 'user' for bathrooms added in the app, 'osm' for OpenStreetMap imports,
-    # 'seattle_parks' for Seattle Parks restrooms that OSM doesn't have,
+    # 'seattle_parks' or 'nyc_opendata' for city restrooms that OSM doesn't have,
     # 'sheet' for bathrooms that came from a team tracking sheet
     source = db.Column(db.String(20), nullable=False, default='user', server_default='user')
     osm_id = db.Column(db.String(40), unique=True)  # e.g. "node/123", used to update on re-import
-    # Seattle Parks asset ID (e.g. "RESTROOM-SCCS"), set on any bathroom matched to the city's data
+    # The city dataset's ID, set on any bathroom matched to a city's data: a
+    # Seattle Parks asset ID (e.g. "RESTROOM-SCCS") or "nyc:" plus a hash for NYC
     city_id = db.Column(db.String(40), unique=True)
     # Edited by the team in a tracking sheet; the OSM and Seattle Parks
     # imports then leave its details alone

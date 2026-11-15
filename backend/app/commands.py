@@ -4,10 +4,13 @@ import click
 
 from app import db
 from app.models.bathroomDB import Bathroom
-from app.services import geocoding, osm_toilets, seattle_parks, tracking_sheet
+from app.services import geocoding, nyc_restrooms, osm_toilets, seattle_parks, tracking_sheet
 
 # Two records this close together are treated as the same restroom
 MATCH_METERS = 30
+# City open data wins over OSM for these on any bathroom matched to a city's data
+CITY_FIELDS = ('name', 'latitude', 'longitude', 'open_hour', 'close_hour', 'hours_note')
+CITY_SOURCES = ('seattle_parks', nyc_restrooms.SOURCE)
 # A sheet row matches an existing bathroom with the same name this close by
 SHEET_MATCH_METERS = 15
 SHEET_CLOSED_REASON = 'Reported closed'
@@ -99,10 +102,10 @@ def register_commands(app):
             seen.add(fields['osm_id'])
             bathroom = Bathroom.query.filter_by(osm_id=fields['osm_id']).first()
             if not bathroom:
-                # A Seattle Parks restroom that OSM has now mapped too
+                # A city-listed restroom that OSM has now mapped too
                 bathroom = _nearest_within(
                     fields['latitude'], fields['longitude'], MATCH_METERS,
-                    Bathroom.source == 'seattle_parks', Bathroom.osm_id.is_(None))
+                    Bathroom.source.in_(CITY_SOURCES), Bathroom.osm_id.is_(None))
             if bathroom and (bathroom.curated or bathroom.source == 'sheet'):
                 # The team's sheet owns this one's details
                 kept_curated += 1
@@ -117,10 +120,15 @@ def register_commands(app):
             # fill-addresses (or by hand) rather than blanking it
             if not fields['address'] and bathroom.address:
                 del fields['address']
-            # Seattle Parks keeps its own hours; they're better than OSM's
+            # City data wins: OSM only fills in what the city doesn't report
             if bathroom.city_id:
-                for key in ('open_hour', 'close_hour', 'hours_note'):
+                for key in CITY_FIELDS:
                     del fields[key]
+                if nyc_restrooms.owns(bathroom.city_id):
+                    del fields['is_accessible']
+                    for key in ('gender', 'notes'):
+                        if getattr(bathroom, key) is not None:
+                            del fields[key]
             for key, value in fields.items():
                 setattr(bathroom, key, value)
 
@@ -138,8 +146,9 @@ def register_commands(app):
                 bathroom.source, bathroom.osm_id = 'sheet', None
                 kept += 1
             elif bathroom.city_id:
-                # Gone from OSM but still listed by Seattle Parks
-                bathroom.source, bathroom.osm_id = 'seattle_parks', None
+                # Gone from OSM but still listed by the city
+                city_source = nyc_restrooms.SOURCE if nyc_restrooms.owns(bathroom.city_id) else 'seattle_parks'
+                bathroom.source, bathroom.osm_id = city_source, None
                 kept += 1
             else:
                 db.session.delete(bathroom)
@@ -222,8 +231,10 @@ def register_commands(app):
                     db.session.add(bathroom)
                     added += 1
                 bathroom.city_id = city_id
-            if bathroom.source == 'seattle_parks':
+            # The city's name and position win over OSM's; the team's edits win over both
+            if not bathroom.curated:
                 bathroom.name = seattle_parks.display_name(props)
+                bathroom.latitude, bathroom.longitude = lat, lng
 
             hours = seattle_parks.parse_hours(props)
             if hours and not bathroom.curated:
@@ -234,8 +245,82 @@ def register_commands(app):
             db.session.flush()
 
         removed = unlinked = 0
-        for bathroom in Bathroom.query.filter(Bathroom.city_id.isnot(None), Bathroom.city_id.notin_(seen)):
+        for bathroom in Bathroom.query.filter(
+            Bathroom.city_id.isnot(None),
+            Bathroom.city_id.notin_(seen),
+            ~Bathroom.city_id.startswith(nyc_restrooms.ID_PREFIX),
+        ):
             if bathroom.source == 'seattle_parks':
+                db.session.delete(bathroom)
+                removed += 1
+            else:
+                bathroom.city_id = bathroom.status = bathroom.status_reason = None
+                unlinked += 1
+
+        db.session.commit()
+        click.echo(f'Matched {matched} to existing bathrooms, added {added}, updated {updated}, '
+                   f'removed {removed}, unlinked {unlinked}.')
+
+    @app.cli.command('import-nyc-restrooms')
+    def import_nyc_restrooms():
+        """Add NYC Open Data's public restrooms, and their hours, accessibility
+        and open/closed status to matching bathrooms. Safe to re-run."""
+        click.echo('Downloading NYC public restrooms...')
+        try:
+            rows = nyc_restrooms.located(nyc_restrooms.fetch_restrooms())
+        except (OSError, ValueError) as e:
+            raise click.ClickException(f'Could not download NYC Open Data: {e}')
+
+        matched = added = updated = 0
+        seen = set()
+        for city_id, lat, lng, row in rows:
+            seen.add(city_id)
+            bathroom = Bathroom.query.filter_by(city_id=city_id).first()
+            if bathroom:
+                updated += 1
+            else:
+                bathroom = _nearest_within(lat, lng, MATCH_METERS, Bathroom.city_id.is_(None))
+                if bathroom:
+                    matched += 1
+                else:
+                    bathroom = Bathroom(
+                        name=nyc_restrooms.display_name(row),
+                        latitude=lat,
+                        longitude=lng,
+                        hours_note='Hours unknown',
+                        is_accessible=False,
+                        source=nyc_restrooms.SOURCE,
+                    )
+                    db.session.add(bathroom)
+                    added += 1
+                bathroom.city_id = city_id
+
+            # The city wins over OSM for whatever it reports; the team's edits win over both
+            if not bathroom.curated:
+                bathroom.name = nyc_restrooms.display_name(row)
+                bathroom.latitude, bathroom.longitude = lat, lng
+                hours = nyc_restrooms.parse_hours(row)
+                if hours:
+                    bathroom.open_hour, bathroom.close_hour, bathroom.hours_note = hours
+                accessible = nyc_restrooms.is_accessible(row)
+                if accessible is not None:
+                    bathroom.is_accessible = accessible
+                gender = nyc_restrooms.gender(row)
+                if gender:
+                    bathroom.gender = gender
+                notes = nyc_restrooms.notes(row)
+                if notes:
+                    bathroom.notes = notes
+            if bathroom.status_reason != SHEET_CLOSED_REASON:
+                bathroom.status, bathroom.status_reason = nyc_restrooms.parse_status(row)
+            db.session.flush()
+
+        removed = unlinked = 0
+        for bathroom in Bathroom.query.filter(
+            Bathroom.city_id.startswith(nyc_restrooms.ID_PREFIX),
+            Bathroom.city_id.notin_(seen),
+        ):
+            if bathroom.source == nyc_restrooms.SOURCE:
                 db.session.delete(bathroom)
                 removed += 1
             else:
@@ -254,7 +339,7 @@ def register_commands(app):
 
         Rows match existing bathrooms by OSM ID, else by the same name within
         15 m. Bathrooms whose details the sheet changes are marked team-edited,
-        so the OSM and Seattle Parks imports stop overwriting them. Blank
+        so the OSM and city imports stop overwriting them. Blank
         address, hours or gender cells don't erase what's already known."""
         try:
             rows = tracking_sheet.read_rows(csv_path)
