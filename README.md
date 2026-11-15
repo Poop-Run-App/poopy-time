@@ -35,6 +35,7 @@ Endpoints:
 | POST | `/auth/signup` | `{ email, password, display_name? }` → `{ token, user }` |
 | POST | `/auth/login` | `{ email, password }` → `{ token, user }` |
 | GET | `/auth/me` | Requires `Authorization: Bearer <token>` |
+| POST | `/routes/snap` | `{ points: [[lat, lng], ...] }` → `{ route }`: the drawn path moved onto walkable paths (see `ROUTING_URL` in `env.template`) |
 
 Add new features as a model in `app/models/`, a blueprint in `app/routes/` (registered in `routes/__init__.py`), and any business logic in `app/services/`. Use `@token_required` from `routes/shared.py` for authenticated routes.
 
