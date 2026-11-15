@@ -62,17 +62,21 @@ Native builds: `npm run android` / `npm run ios` (iOS requires macOS), or EAS: `
 
 ## Bathroom data
 
-Ingest loads NYC Open Data, Seattle Parks restrooms, and OpenStreetMap toilets into the local SQLite database when `DATABASE_URL` is blank. City rows win over OpenStreetMap, including coordinates. Details and the field list are in [docs/bathroom-data-pipeline.md](docs/bathroom-data-pipeline.md).
+Bathrooms live in the `bathrooms` table and are loaded with Flask commands. Each is safe to re-run. City open data wins over OpenStreetMap, and edits from the team's tracking sheet win over both. Details are in [docs/bathroom-data-pipeline.md](docs/bathroom-data-pipeline.md).
 
 ```bash
 cd backend
 source .venv/bin/activate
 flask db upgrade
-python -m app.ingest init      # first load; refuses if bathroom rows already exist
-python -m app.ingest update    # fetch again, upsert, and rematch
+flask import-osm-toilets --city seattle   # or --city nyc, or --bbox south,west,north,east
+flask import-seattle-parks
+flask import-osm-toilets --city nyc
+flask import-nyc-restrooms
+flask import-sheet path/to/sheet.csv      # team tracking sheet, exported as CSV
+flask fill-addresses --city seattle       # optional, one lookup per second
 ```
 
-`--region nyc|seattle|all` limits which feeds run. The command refuses a Postgres `DATABASE_URL` unless you pass `--allow-remote`.
+These write to whatever database `DATABASE_URL` points at (local SQLite when it's blank).
 
 ## Deploying the backend (Railway)
 

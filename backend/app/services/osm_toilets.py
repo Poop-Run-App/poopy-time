@@ -19,6 +19,7 @@ USER_AGENT = 'PoopyTime/0.1 (bathroom finder; https://github.com/Poop-Run-App/po
 
 # (south, west, north, east)
 CITY_BOUNDS = {
+    'nyc': (40.4774, -74.2591, 40.9176, -73.7004),
     'seattle': (47.4810, -122.4598, 47.7341, -122.2245),
 }
 
